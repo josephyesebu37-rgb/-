@@ -3,24 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>తెలుగు బైబిల్ & AI అసిస్టెంట్</title>
+    <title>తెలుగు బైబిల్ & AI (Gemini 2.0)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Mandali&family=Ramabhadra&display=swap');
         body { font-family: 'Mandali', sans-serif; background-color: #f3f4f6; }
         .verse-num { color: #d97706; font-weight: bold; margin-right: 5px; font-size: 0.9em; }
         .verse-text { line-height: 1.8; font-size: 1.1rem; }
+        
+        /* AI Response Styles */
         .ai-response { white-space: pre-wrap; line-height: 1.6; font-size: 1rem; color: #374151; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* Markdown style */
         .ai-response h1, .ai-response h2 { font-weight: bold; margin-top: 10px; color: #1e3a8a; }
         .ai-response strong { color: #b45309; }
+        
+        /* Cartoon Mode Styles - Fun fonts & colors */
+        .cartoon-mode { 
+            font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; 
+            color: #4b5563; 
+            background-color: #fffbeb; 
+            border: 3px dashed #f59e0b; 
+            padding: 15px; 
+            border-radius: 15px; 
+            box-shadow: 5px 5px 0px #fcd34d;
+        }
+
+        /* Real Life Mode Styles */
+        .real-life-mode {
+            background-color: #ecfdf5;
+            border-left: 5px solid #10b981;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        
+        /* Loader */
         .loader {
             border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%;
             width: 30px; height: 30px; animation: spin 1s linear infinite; display: inline-block;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Hide scrollbar */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden relative">
@@ -30,7 +54,7 @@
         <h1 class="text-xl md:text-2xl font-bold font-['Ramabhadra']">పవిత్ర గ్రంథము</h1>
     </header>
 
-    <!-- Navigation -->
+    <!-- Navigation Controls -->
     <div id="app-controls" class="hidden bg-white shadow-sm border-b p-3">
         <div class="max-w-4xl mx-auto flex flex-col md:flex-row gap-3">
             <div class="flex gap-2 flex-1">
@@ -44,19 +68,17 @@
         </div>
     </div>
 
-    <!-- Main Content -->
+    <!-- Main Content Area -->
     <main class="flex-1 overflow-y-auto p-4 max-w-4xl mx-auto w-full relative pb-24">
         
-        <!-- Loading / Welcome Screen -->
+        <!-- Welcome / Loading Screen -->
         <div id="welcome-screen" class="flex flex-col items-center justify-center h-full text-center text-gray-500">
             <div id="initial-loader" class="loader mb-4"></div>
             <h2 id="welcome-msg" class="text-xl font-bold text-gray-700 mb-2">బైబిల్ డేటా లోడ్ అవుతోంది...</h2>
-            <p id="error-details" class="text-xs text-red-400 mt-2 hidden"></p>
             
             <!-- Manual Upload Fallback -->
             <div id="manual-upload-prompt" class="hidden mt-6 bg-white p-6 rounded shadow border border-red-100">
                 <p class="text-red-600 font-bold mb-2">⚠ ఆన్లైన్ డేటా అందలేదు</p>
-                <p class="text-sm text-gray-600 mb-4">Github లో 'bible.json' ఫైల్ సరిగ్గా ఉందో లేదో చూడండి. లేదా ఇక్కడ మాన్యువల్ గా అప్లోడ్ చేయండి.</p>
                 <label class="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">
                     📂 ఫైల్ సెలెక్ట్ చేయండి
                     <input type="file" id="jsonFileManual" accept=".json" class="hidden">
@@ -67,7 +89,7 @@
         <!-- Verse Container -->
         <div id="verses-container" class="hidden space-y-4"></div>
 
-        <!-- Search Results Display -->
+        <!-- Search Results -->
         <div id="search-results" class="hidden space-y-4">
             <div class="flex justify-between items-center border-b pb-2 mb-4">
                 <h3 class="font-bold text-lg text-blue-900">శోధన ఫలితాలు</h3>
@@ -77,46 +99,78 @@
         </div>
     </main>
 
-    <!-- AI Button -->
-    <button id="ai-fab" onclick="toggleAIPanel()" class="hidden fixed bottom-20 right-5 bg-indigo-600 text-white p-4 rounded-full shadow-lg z-20 flex items-center gap-2">
-        <span>✨</span> <span class="font-bold hidden md:inline">AI</span>
+    <!-- AI Floating Button -->
+    <button id="ai-fab" onclick="toggleAIPanel()" class="hidden fixed bottom-20 right-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-full shadow-lg z-20 flex items-center gap-2 hover:scale-110 transition duration-300">
+        <span class="text-2xl">✨</span> <span class="font-bold hidden md:inline">AI సహాయం</span>
     </button>
 
-    <!-- AI Panel -->
+    <!-- AI Panel (Slide-in) -->
     <div id="ai-panel" class="fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-30 flex flex-col">
         <div class="bg-indigo-900 text-white p-4 flex justify-between items-center">
             <h2 class="font-bold text-lg">✨ AI ఆత్మీయ సహాయకుడు</h2>
-            <button onclick="toggleAIPanel()" class="text-white text-2xl">&times;</button>
+            <button onclick="toggleAIPanel()" class="text-white text-2xl hover:text-red-300">&times;</button>
         </div>
-        <div class="flex-1 overflow-y-auto p-4 space-y-4">
-            <div class="bg-indigo-50 p-3 rounded text-sm text-indigo-800 mb-4">ప్రస్తుతం: <span id="ai-current-context" class="font-bold">-</span></div>
-            <div class="grid grid-cols-1 gap-3">
-                <button onclick="askGemini('summary')" class="bg-white border p-3 rounded hover:bg-indigo-50 text-left font-bold text-gray-700">📝 సారాంశం</button>
-                <button onclick="askGemini('story')" class="bg-white border p-3 rounded hover:bg-pink-50 text-left font-bold text-gray-700">🧸 పిల్లల కథ</button>
-                <button onclick="askGemini('devotional')" class="bg-white border p-3 rounded hover:bg-green-50 text-left font-bold text-gray-700">🙏 దైవ సందేశం</button>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-3">
+            <div class="bg-indigo-50 p-3 rounded text-sm text-indigo-800 mb-2 border border-indigo-100">
+                సందర్భం: <span id="ai-current-context" class="font-bold">-</span>
             </div>
-            <div class="mt-4">
-                <input type="text" id="ai-question-input" placeholder="ప్రశ్న అడగండి..." class="w-full border rounded p-2 mb-2">
-                <button onclick="askGemini('custom')" class="bg-indigo-600 text-white px-4 py-2 w-full rounded">అడగండి</button>
+            
+            <!-- Real Life Example Button -->
+            <button onclick="askGemini('real_life')" class="w-full bg-white border border-green-300 p-3 rounded hover:bg-green-50 text-left flex items-center gap-3 shadow-sm group transition">
+                <span class="text-2xl group-hover:scale-110 transition">🌍</span>
+                <div>
+                    <div class="font-bold text-gray-800">నిజ జీవిత ఉదాహరణ</div>
+                    <div class="text-xs text-gray-500">ఈ రోజుల్లో దీనిని ఎలా అన్వయించుకోవాలి?</div>
+                </div>
+            </button>
+
+            <!-- Cartoon Story Button -->
+            <button onclick="askGemini('cartoon')" class="w-full bg-white border border-yellow-400 p-3 rounded hover:bg-yellow-50 text-left flex items-center gap-3 shadow-sm group transition">
+                <span class="text-2xl group-hover:scale-110 transition">🦁</span>
+                <div>
+                    <div class="font-bold text-gray-800">పిల్లల కార్టూన్ కథ</div>
+                    <div class="text-xs text-gray-500">ఎమోజీలు & సౌండ్ ఎఫెక్ట్స్ తో ఫన్నీగా...</div>
+                </div>
+            </button>
+
+            <!-- Other Options -->
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="askGemini('summary')" class="bg-white border p-3 rounded hover:bg-gray-50 text-center font-bold text-gray-700 text-sm">📝 సారాంశం</button>
+                <button onclick="askGemini('devotional')" class="bg-white border p-3 rounded hover:bg-gray-50 text-center font-bold text-gray-700 text-sm">🙏 దైవ సందేశం</button>
             </div>
-            <div id="ai-loader" class="hidden text-center py-4"><div class="loader"></div></div>
-            <div id="ai-content" class="bg-gray-50 p-4 rounded border ai-response text-sm mt-4 hidden"></div>
+
+            <!-- Custom Question -->
+            <div class="mt-4 pt-4 border-t">
+                <input type="text" id="ai-question-input" placeholder="మీ సందేహం అడగండి..." class="w-full border rounded p-2 mb-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                <button onclick="askGemini('custom')" class="bg-indigo-600 text-white px-4 py-2 w-full rounded hover:bg-indigo-700 transition font-bold">పంపించు ➤</button>
+            </div>
+
+            <!-- Loader & Response Area -->
+            <div id="ai-loader" class="hidden text-center py-8">
+                <div class="loader"></div>
+                <p class="text-xs text-gray-500 mt-2 font-bold animate-pulse">Gemini 2.0 ఆలోచిస్తుంది...</p>
+            </div>
+            <div id="ai-content" class="text-sm mt-4 hidden p-2"></div>
         </div>
     </div>
 
-    <!-- Footer Nav -->
+    <!-- Footer Navigation -->
     <footer id="nav-footer" class="hidden bg-white border-t p-3 fixed bottom-0 w-full shadow-lg z-10 flex justify-between max-w-4xl mx-auto left-0 right-0">
-        <button id="prevChapter" class="bg-gray-200 text-gray-700 px-4 py-2 rounded">⬅ వెనుకకు</button>
-        <button id="nextChapter" class="bg-blue-600 text-white px-4 py-2 rounded">ముందుకు ➡</button>
+        <button id="prevChapter" class="bg-gray-200 text-gray-700 px-4 py-2 rounded font-bold shadow-sm">⬅ వెనుకకు</button>
+        <button id="nextChapter" class="bg-blue-600 text-white px-4 py-2 rounded font-bold shadow-sm hover:bg-blue-700">ముందుకు ➡</button>
     </footer>
 
     <script>
-        const apiKey = ""; 
+        // --- 1. CONFIGURATION ---
+        // 🚨 YOUR API KEY HARDCODED HERE AS REQUESTED 🚨
+        const apiKey = "AIzaSyCkbWm2BZfk8trvEav_XW-N11sb-IK3PhY"; 
+        
         let bibleData = null;
         let currentBookIndex = 0;
         let currentChapterIndex = 0;
         
-        // 66 BOOKS - TELUGU NAMES
+        // Telugu Book Names (Hardcoded because JSON lacks them)
         const teluguBookNames = [
             "ఆదికాండము", "నిర్గమకాండము", "లేవీయకాండము", "సంఖ్యాకాండము", "ద్వితీయోపదేశకాండము", "యెహోషువ", "న్యాయాధిపతులు", "రూతు", "1 సమూయేలు", "2 సమూయేలు", 
             "1 రాజులు", "2 రాజులు", "1 దినవృత్తాంతములు", "2 దినవృత్తాంతములు", "ఎజ్రా", "నెహెమ్యా", "ఎస్తేరు", "యోబు", "కీర్తనల గ్రంథము", "సామెతలు", 
@@ -127,20 +181,20 @@
             "1 యోహాను", "2 యోహాను", "3 యోహాను", "యూదా", "ప్రకటన గ్రంథము"
         ];
 
-        // --- 1. AUTO LOAD LOGIC ---
+        // --- 2. AUTO LOAD LOGIC ---
         window.addEventListener('DOMContentLoaded', async () => {
             try {
+                // Assuming bible.json is in the same folder
                 const response = await fetch('bible.json');
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
                 const json = await response.json();
                 if (json.Book && Array.isArray(json.Book)) {
                     bibleData = json.Book;
                     initializeUI();
-                } else throw new Error("Invalid Format");
+                } else throw new Error("Invalid JSON Format");
             } catch (error) {
                 console.error("Auto-load failed:", error);
                 document.getElementById('initial-loader').classList.add('hidden');
-                document.getElementById('welcome-msg').innerText = "లోడింగ్ విఫలమైంది";
                 document.getElementById('manual-upload-prompt').classList.remove('hidden');
             }
         });
@@ -161,7 +215,7 @@
             reader.readAsText(file);
         });
 
-        // --- 2. UI LOGIC ---
+        // --- 3. UI INITIALIZATION & NAVIGATION ---
         function initializeUI() {
             document.getElementById('welcome-screen').classList.add('hidden');
             document.getElementById('app-controls').classList.remove('hidden');
@@ -245,7 +299,7 @@
             else if(currentBookIndex < bibleData.length - 1) loadChapter(currentBookIndex + 1, 0);
         };
 
-        // --- 3. IMPROVED SEARCH LOGIC ---
+        // --- 4. SEARCH FUNCTIONALITY ---
         document.getElementById('searchBtn').onclick = performSearch;
         document.getElementById('searchInput').onkeypress = (e) => { if(e.key==='Enter') performSearch(); };
 
@@ -262,24 +316,18 @@
             list.innerHTML = '<div class="text-center py-4"><div class="loader"></div><p>వెతుకుతున్నాను...</p></div>';
             stats.innerText = '';
 
-            // Use setTimeout to allow UI to render the loader before heavy calculation
             setTimeout(() => {
                 list.innerHTML = '';
                 let count = 0;
                 let resultsHTML = '';
 
                 bibleData.forEach((book, bIdx) => {
-                    // FORCE TELUGU NAME HERE
                     const bName = teluguBookNames[bIdx] || `Book ${bIdx+1}`;
-                    
                     book.Chapter.forEach((ch, cIdx) => {
                         ch.Verse.forEach((v, vIdx) => {
                             if(v.Verse.includes(query)) {
                                 count++;
-                                // Highlight the word
                                 const highlightedText = v.Verse.replace(new RegExp(query, 'gi'), match => `<span class="bg-yellow-200 font-bold">${match}</span>`);
-                                
-                                // Create HTML String (Better performance than createElem in loop)
                                 resultsHTML += `
                                     <div onclick="loadChapter(${bIdx}, ${cIdx})" class="bg-white p-3 rounded border-l-4 border-blue-500 shadow-sm cursor-pointer hover:bg-blue-50 transition">
                                         <div class="text-xs text-blue-600 font-bold mb-1">${bName} ${cIdx+1}:${vIdx+1}</div>
@@ -296,43 +344,94 @@
                     stats.innerText = '0 ఫలితాలు';
                 } else {
                     list.innerHTML = resultsHTML;
-                    stats.innerText = `${count} ఫలితాలు దొరికాయి`;
+                    stats.innerText = `${count} ఫలితాలు`;
                 }
             }, 50);
         }
 
-        // --- 4. AI LOGIC ---
+        // --- 5. AI LOGIC (GEMINI 2.0 FLASH) ---
         function toggleAIPanel() { document.getElementById('ai-panel').classList.toggle('translate-x-full'); }
+        
         async function askGemini(type) {
             const contentDiv = document.getElementById('ai-content');
             const loader = document.getElementById('ai-loader');
             const inputVal = document.getElementById('ai-question-input').value;
-            
-            if(!bibleData) return;
-            const bName = teluguBookNames[currentBookIndex];
-            const verses = bibleData[currentBookIndex].Chapter[currentChapterIndex].Verse.map(v => v.Verse).join('\n').substring(0, 12000);
-            
-            let prompt = `Role: Telugu Christian Assistant. Context: Bible ${bName} Chapter ${currentChapterIndex+1}.\nText:\n${verses}\n\nTask:\n`;
-            if(type==='summary') prompt += "Give a summary of this chapter in Telugu.";
-            else if(type==='story') prompt += "Tell this chapter as a moral story for children in Telugu.";
-            else if(type==='devotional') prompt += "Write a devotional message and a short prayer based on this chapter in Telugu.";
-            else prompt += `Answer this question in Telugu: ${inputVal}`;
 
+            if(!bibleData) { alert("ముందు డేటా లోడ్ చేయండి."); return; }
+
+            const bName = teluguBookNames[currentBookIndex];
+            const verses = bibleData[currentBookIndex].Chapter[currentChapterIndex].Verse.map(v => v.Verse).join('\n').substring(0, 15000);
+            
+            // CONSTRUCT PROMPTS
+            let systemPrompt = "You are a helpful Telugu Christian Assistant. Always answer in Telugu.";
+            let userPrompt = `Context: Bible Book '${bName}' Chapter ${currentChapterIndex+1}.\n\nBible Text:\n${verses}\n\n`;
+
+            if(type === 'real_life') {
+                userPrompt += `Task: ఈ అధ్యాయంలోని నీతిని, ఈ రోజుల్లో (2025లో) ఒక సామాన్య మనిషి తన ఆఫీసులోనో, కుటుంబంలోనో లేదా సమాజంలోనో ఎలా పాటించాలో ఒక "Real Life Example" (నిజ జీవిత ఉదాహరణ) ద్వారా వివరించు. తెలుగులో చెప్పు.`;
+            } else if(type === 'cartoon') {
+                userPrompt += `Task: ఈ అధ్యాయాన్ని 5 ఏళ్ల పిల్లల కోసం ఒక ఫన్నీ "Cartoon Script" లాగా మార్చు.
+                Rules:
+                1. ఎమోజీలు ఎక్కువగా వాడు (🦁, ⚡, 🌊).
+                2. సౌండ్ ఎఫెక్ట్స్ రాయి (ఉదా: ఢమాల్!, టap టap, భయ్ భయ్).
+                3. భాష చాలా సరళంగా, ఉత్సాహంగా ఉండాలి.
+                4. చివరగా పిల్లల కోసం చిన్న నీతి చెప్పు.`;
+            } else if(type === 'summary') {
+                userPrompt += "Task: ఈ అధ్యాయం యొక్క సారాంశాన్ని క్లుప్తంగా తెలుగులో వివరించు.";
+            } else if(type === 'devotional') {
+                userPrompt += "Task: ఈ రోజుకు సరిపడే ఒక ఆత్మీయ సందేశం (Devotional) మరియు చిన్న ప్రార్థన రాయి.";
+            } else {
+                if(!inputVal) { alert("ప్రశ్న అడగండి"); return; }
+                userPrompt += `User Question: ${inputVal}\nAnswer in Telugu based on the text.`;
+            }
+
+            // UI Updates
             contentDiv.classList.add('hidden');
             loader.classList.remove('hidden');
 
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                // Using Gemini 2.0 Flash as requested
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: userPrompt }] }]
+                    })
                 });
-                const data = await res.json();
-                const txt = data.candidates[0].content.parts[0].text;
-                contentDiv.innerHTML = txt.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\* /g, '• ').replace(/\n/g, '<br>');
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || "API Error");
+                }
+
+                const data = await response.json();
+                const aiText = data.candidates[0].content.parts[0].text;
+
+                // Formatting
+                let formattedText = aiText
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\* /g, '• ')
+                    .replace(/\n/g, '<br>');
+
+                // Styling based on type
+                contentDiv.className = "text-sm mt-4 p-4 rounded ai-response overflow-auto";
+                if(type === 'cartoon') {
+                    contentDiv.classList.add('cartoon-mode');
+                    contentDiv.classList.remove('bg-gray-50', 'real-life-mode');
+                } else if(type === 'real_life') {
+                    contentDiv.classList.add('real-life-mode');
+                    contentDiv.classList.remove('bg-gray-50', 'cartoon-mode');
+                } else {
+                    contentDiv.classList.add('bg-gray-50', 'border');
+                    contentDiv.classList.remove('cartoon-mode', 'real-life-mode');
+                }
+
+                contentDiv.innerHTML = formattedText;
                 contentDiv.classList.remove('hidden');
-            } catch(e) {
-                contentDiv.innerHTML = '<span class="text-red-500">AI Error. Check Connection/Key.</span>';
+
+            } catch (error) {
+                console.error(error);
+                contentDiv.className = "bg-red-50 p-4 rounded border text-sm mt-4 text-red-600";
+                contentDiv.innerHTML = `<strong>Error:</strong> ${error.message}<br>కీ బ్లాక్ అయ్యి ఉండవచ్చు లేదా కోటా అయిపోయి ఉండవచ్చు.`;
                 contentDiv.classList.remove('hidden');
             } finally {
                 loader.classList.add('hidden');
@@ -340,4 +439,4 @@
         }
     </script>
 </body>
-</html>
+</html>    </html>
