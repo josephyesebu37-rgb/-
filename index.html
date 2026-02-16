@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>తెలుగు బైబిల్ & AI అసిస్టెంట్</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Mandali&family=Ramabhadra&display=swap');
+        body {
+            font-family: 'Mandali', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .verse-num { color: #d97706; font-weight: bold; margin-right: 5px; font-size: 0.9em; }
+        .verse-text { line-height: 1.8; font-size: 1.1rem; }
+        .ai-response { white-space: pre-wrap; line-height: 1.6; font-size: 1rem; color: #374151; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Markdown style */
+        .ai-response h1, .ai-response h2 { font-weight: bold; margin-top: 10px; color: #1e3a8a; }
+        .ai-response ul { list-style-type: disc; margin-left: 20px; }
+        .ai-response strong { color: #b45309; }
+        
+        /* Loading Animation */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden relative">
+
+    <!-- Header Section -->
+    <header class="bg-blue-900 text-white p-4 shadow-md z-10 flex justify-between items-center">
+        <h1 class="text-xl md:text-2xl font-bold font-['Ramabhadra']">పవిత్ర గ్రంథము</h1>
+        
+        <!-- Status Indicator -->
+        <div id="status-indicator" class="text-xs bg-blue-800 px-2 py-1 rounded hidden">
+            Checking data...
+        </div>
+
+        <div id="file-upload-container" class="hidden">
+            <label for="jsonFile" class="cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1.5 rounded text-sm font-bold transition flex items-center gap-2">
+                📂 <span class="hidden sm:inline">డేటా లోడ్ చేయండి</span>
+            </label>
+            <input type="file" id="jsonFile" accept=".json" class="hidden">
+        </div>
+    </header>
+
+    <!-- Navigation & Search (Hidden initially) -->
+    <div id="app-controls" class="hidden bg-white shadow-sm border-b p-3">
+        <div class="max-w-4xl mx-auto flex flex-col md:flex-row gap-3">
+            <div class="flex gap-2 flex-1">
+                <select id="bookSelect" class="bg-gray-100 border rounded p-2 flex-1 text-gray-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>పుస్తకం...</option>
+                </select>
+                <select id="chapterSelect" class="bg-gray-100 border rounded p-2 w-24 text-gray-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option>అధ్యాయం</option>
+                </select>
+            </div>
+            <div class="relative flex-1">
+                <input type="text" id="searchInput" placeholder="శోధించండి..." class="w-full border rounded p-2 pl-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="searchBtn" class="absolute right-1 top-1 bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">🔍</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto p-4 max-w-4xl mx-auto w-full relative pb-24">
+        
+        <!-- Welcome / Loading Screen -->
+        <div id="welcome-screen" class="flex flex-col items-center justify-center h-full text-center text-gray-500">
+            <div id="initial-loader" class="loader mb-4"></div>
+            <h2 id="welcome-msg" class="text-xl font-bold text-gray-700 mb-2">బైబిల్ డేటా లోడ్ అవుతోంది...</h2>
+            <p id="welcome-sub" class="max-w-md text-sm">దయచేసి వేచి ఉండండి.</p>
+            
+            <!-- Fallback Upload Button (Shown only if auto-load fails) -->
+            <div id="manual-upload-prompt" class="hidden mt-6 bg-white p-6 rounded shadow border border-red-100">
+                <p class="text-red-500 font-bold mb-2">⚠ ఆటోమేటిక్ గా డేటా దొరకలేదు</p>
+                <p class="text-sm text-gray-600 mb-4">మీ దగ్గర ఉన్న <b>bible.json</b> ఫైల్ ని మ్యాన్యువల్ గా సెలెక్ట్ చేయండి.</p>
+                <label for="jsonFileManual" class="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">
+                    ఫైల్ సెలెక్ట్ చేయండి
+                </label>
+                <input type="file" id="jsonFileManual" accept=".json" class="hidden">
+            </div>
+        </div>
+
+        <!-- Verses Display -->
+        <div id="verses-container" class="hidden space-y-4"></div>
+
+        <!-- Search Results Display -->
+        <div id="search-results" class="hidden space-y-4">
+            <h3 class="font-bold text-lg text-blue-900 border-b pb-2 mb-4">శోధన ఫలితాలు:</h3>
+            <div id="search-list" class="space-y-3"></div>
+        </div>
+    </main>
+
+    <!-- AI Button -->
+    <button id="ai-fab" onclick="toggleAIPanel()" class="hidden fixed bottom-20 right-5 bg-indigo-600 text-white p-4 rounded-full shadow-lg z-20 flex items-center gap-2">
+        <span>✨</span> <span class="font-bold hidden md:inline">AI</span>
+    </button>
+
+    <!-- AI Panel -->
+    <div id="ai-panel" class="fixed inset-y-0 right-0 w-full md:w-96 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-30 flex flex-col">
+        <div class="bg-indigo-900 text-white p-4 flex justify-between items-center">
+            <h2 class="font-bold text-lg">✨ AI ఆత్మీయ సహాయకుడు</h2>
+            <button onclick="toggleAIPanel()" class="text-white text-2xl">&times;</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            <div class="bg-indigo-50 p-3 rounded text-sm text-indigo-800 mb-4">ప్రస్తుతం: <span id="ai-current-context" class="font-bold">-</span></div>
+            <div class="grid grid-cols-1 gap-3">
+                <button onclick="askGemini('summary')" class="bg-white border p-3 rounded hover:bg-indigo-50 text-left font-bold text-gray-700">📝 సారాంశం</button>
+                <button onclick="askGemini('story')" class="bg-white border p-3 rounded hover:bg-pink-50 text-left font-bold text-gray-700">🧸 పిల్లల కథ</button>
+                <button onclick="askGemini('devotional')" class="bg-white border p-3 rounded hover:bg-green-50 text-left font-bold text-gray-700">🙏 దైవ సందేశం</button>
+            </div>
+            <div class="mt-4">
+                <input type="text" id="ai-question-input" placeholder="ప్రశ్న అడగండి..." class="w-full border rounded p-2 mb-2">
+                <button onclick="askGemini('custom')" class="bg-indigo-600 text-white px-4 py-2 w-full rounded">అడగండి</button>
+            </div>
+            <div id="ai-loader" class="hidden text-center py-4"><div class="loader"></div></div>
+            <div id="ai-content" class="bg-gray-50 p-4 rounded border ai-response text-sm mt-4 hidden"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer id="nav-footer" class="hidden bg-white border-t p-3 fixed bottom-0 w-full shadow-lg z-10 flex justify-between max-w-4xl mx-auto left-0 right-0">
+        <button id="prevChapter" class="bg-gray-200 text-gray-700 px-4 py-2 rounded">⬅ వెనుకకు</button>
+        <button id="nextChapter" class="bg-blue-600 text-white px-4 py-2 rounded">ముందుకు ➡</button>
+    </footer>
+
+    <script>
+        const apiKey = ""; // API Key handled by environment
+        let bibleData = null;
+        let currentBookIndex = 0;
+        let currentChapterIndex = 0;
+        let currentBookName = "";
+
+        // Elements
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const initialLoader = document.getElementById('initial-loader');
+        const welcomeMsg = document.getElementById('welcome-msg');
+        const welcomeSub = document.getElementById('welcome-sub');
+        const manualUploadPrompt = document.getElementById('manual-upload-prompt');
+        
+        const appControls = document.getElementById('app-controls');
+        const versesContainer = document.getElementById('verses-container');
+        const bookSelect = document.getElementById('bookSelect');
+        const chapterSelect = document.getElementById('chapterSelect');
+        const navFooter = document.getElementById('nav-footer');
+        const aiFab = document.getElementById('ai-fab');
+        
+        // --- 1. AUTO LOAD LOGIC ---
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Try to fetch 'bible.json' from the same directory
+            try {
+                const response = await fetch('bible.json');
+                if (!response.ok) throw new Error("File not found");
+                const json = await response.json();
+                
+                if (json.Book && Array.isArray(json.Book)) {
+                    bibleData = json.Book;
+                    initializeUI();
+                } else {
+                    throw new Error("Invalid Format");
+                }
+            } catch (error) {
+                console.log("Auto-load failed, switching to manual mode:", error);
+                // Fallback to manual upload UI
+                initialLoader.classList.add('hidden');
+                welcomeMsg.innerText = "ఆన్లైన్ డేటా దొరకలేదు";
+                welcomeSub.innerText = "మీరు లోకల్ గా వాడుతున్నట్లయితే ఫైల్ అప్లోడ్ చేయండి.";
+                manualUploadPrompt.classList.remove('hidden');
+            }
+        });
+
+        // Manual Upload Handler (Fallback)
+        document.getElementById('jsonFileManual').addEventListener('change', handleFileUpload);
+        document.getElementById('jsonFile').addEventListener('change', handleFileUpload);
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            manualUploadPrompt.classList.add('hidden');
+            initialLoader.classList.remove('hidden');
+            welcomeMsg.innerText = "ప్రాసెస్ చేస్తున్నాం...";
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    if (json.Book && Array.isArray(json.Book)) {
+                        bibleData = json.Book;
+                        initializeUI();
+                    } else {
+                        alert("తప్పు ఫైల్ ఫార్మాట్!");
+                        initialLoader.classList.add('hidden');
+                        manualUploadPrompt.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    alert("ఫైల్ ఎర్రర్!");
+                    initialLoader.classList.add('hidden');
+                    manualUploadPrompt.classList.remove('hidden');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- 2. CORE UI LOGIC ---
+        function initializeUI() {
+            welcomeScreen.classList.add('hidden');
+            appControls.classList.remove('hidden');
+            navFooter.classList.remove('hidden');
+            aiFab.classList.remove('hidden');
+            populateBooks();
+            loadChapter(0, 0);
+        }
+
+        function populateBooks() {
+            bookSelect.innerHTML = '';
+            bibleData.forEach((book, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                let bookName = "పుస్తకం " + (index + 1);
+                // Trying to find name key
+                const keys = Object.keys(book);
+                const nameKey = keys.find(k => k !== "Chapter"); 
+                if(nameKey && typeof book[nameKey] === 'string') bookName = book[nameKey];
+                option.textContent = bookName;
+                bookSelect.appendChild(option);
+            });
+        }
+
+        function populateChapters(bookIdx) {
+            chapterSelect.innerHTML = '';
+            const chapters = bibleData[bookIdx].Chapter;
+            chapters.forEach((_, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = (index + 1);
+                chapterSelect.appendChild(option);
+            });
+            chapterSelect.value = currentChapterIndex;
+        }
+
+        function loadChapter(bookIdx, chapIdx) {
+            currentBookIndex = parseInt(bookIdx);
+            currentChapterIndex = parseInt(chapIdx);
+            
+            // Get book name
+            const bookObj = bibleData[currentBookIndex];
+            const keys = Object.keys(bookObj);
+            const nameKey = keys.find(k => k !== "Chapter");
+            currentBookName = (nameKey && typeof bookObj[nameKey] === 'string') ? bookObj[nameKey] : ("Book " + (currentBookIndex + 1));
+            
+            document.getElementById('ai-current-context').textContent = `${currentBookName} - ${currentChapterIndex + 1}`;
+
+            bookSelect.value = currentBookIndex;
+            populateChapters(currentBookIndex);
+            chapterSelect.value = currentChapterIndex;
+            versesContainer.innerHTML = '';
+            versesContainer.classList.remove('hidden');
+            document.getElementById('search-results').classList.add('hidden');
+            
+            const chapterData = bibleData[currentBookIndex].Chapter[currentChapterIndex];
+            if(chapterData && chapterData.Verse) {
+                chapterData.Verse.forEach((v, idx) => {
+                    const verseDiv = document.createElement('div');
+                    verseDiv.className = "bg-white p-3 rounded shadow-sm border border-gray-100 mb-2";
+                    verseDiv.innerHTML = `<span class="verse-num">${idx + 1}</span><span class="verse-text text-gray-800">${v.Verse}</span>`;
+                    versesContainer.appendChild(verseDiv);
+                });
+            }
+            document.querySelector('main').scrollTop = 0;
+            
+            // Update buttons
+            document.getElementById('prevChapter').disabled = (currentBookIndex === 0 && currentChapterIndex === 0);
+            const lastBookIdx = bibleData.length - 1;
+            const lastChapIdx = bibleData[lastBookIdx].Chapter.length - 1;
+            document.getElementById('nextChapter').disabled = (currentBookIndex === lastBookIdx && currentChapterIndex === lastChapIdx);
+        }
+
+        // --- 3. EVENT LISTENERS ---
+        document.getElementById('prevChapter').onclick = () => {
+            if (currentChapterIndex > 0) loadChapter(currentBookIndex, currentChapterIndex - 1);
+            else if (currentBookIndex > 0) {
+                const prevLen = bibleData[currentBookIndex - 1].Chapter.length;
+                loadChapter(currentBookIndex - 1, prevLen - 1);
+            }
+        };
+        document.getElementById('nextChapter').onclick = () => {
+            const curLen = bibleData[currentBookIndex].Chapter.length;
+            if (currentChapterIndex < curLen - 1) loadChapter(currentBookIndex, currentChapterIndex + 1);
+            else if (currentBookIndex < bibleData.length - 1) loadChapter(currentBookIndex + 1, 0);
+        };
+        bookSelect.onchange = (e) => loadChapter(e.target.value, 0);
+        chapterSelect.onchange = (e) => loadChapter(currentBookIndex, e.target.value);
+        
+        // Search
+        document.getElementById('searchBtn').onclick = performSearch;
+        document.getElementById('searchInput').onkeypress = (e) => { if(e.key === 'Enter') performSearch(); };
+
+        function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if(!query) return;
+            versesContainer.classList.add('hidden');
+            const resContainer = document.getElementById('search-results');
+            const list = document.getElementById('search-list');
+            resContainer.classList.remove('hidden');
+            list.innerHTML = '<div class="text-center text-gray-500">వెతుకుతున్నాను...</div>';
+
+            setTimeout(() => {
+                list.innerHTML = '';
+                let count = 0;
+                bibleData.forEach((book, bIdx) => {
+                    let bName = "Book " + (bIdx+1);
+                    const k = Object.keys(book).find(x => x!=="Chapter");
+                    if(k) bName = book[k];
+                    
+                    book.Chapter.forEach((ch, cIdx) => {
+                        ch.Verse.forEach((v, vIdx) => {
+                            if(v.Verse.includes(query)) {
+                                count++;
+                                if(count > 50) return;
+                                const d = document.createElement('div');
+                                d.className = "bg-white p-3 rounded border-l-4 border-blue-500 shadow-sm cursor-pointer hover:bg-blue-50";
+                                d.innerHTML = `<div class="text-xs text-blue-600 font-bold">${bName} ${cIdx+1}:${vIdx+1}</div><div class="text-sm">${v.Verse.replace(query, `<span class="bg-yellow-200 font-bold">${query}</span>`)}</div>`;
+                                d.onclick = () => loadChapter(bIdx, cIdx);
+                                list.appendChild(d);
+                            }
+                        });
+                    });
+                });
+                if(count === 0) list.innerHTML = '<div class="text-red-500 text-center">ఫలితాలు లేవు</div>';
+            }, 50);
+        }
+
+        // --- 4. AI LOGIC ---
+        function toggleAIPanel() { document.getElementById('ai-panel').classList.toggle('translate-x-full'); }
+        
+        async function askGemini(type) {
+            const contentDiv = document.getElementById('ai-content');
+            const loader = document.getElementById('ai-loader');
+            const inputVal = document.getElementById('ai-question-input').value;
+            
+            if(!bibleData) return;
+            const verses = bibleData[currentBookIndex].Chapter[currentChapterIndex].Verse.map(v => v.Verse).join('\n').substring(0, 15000);
+            
+            let prompt = `Context: Telugu Bible ${currentBookName} Chapter ${currentChapterIndex+1}.\nText:\n${verses}\n\n`;
+            if(type==='summary') prompt += "Task: ఈ అధ్యాయం సారాంశాన్ని తెలుగులో వివరించు.";
+            else if(type==='story') prompt += "Task: దీన్ని పిల్లల కోసం ఒక నీతి కథగా చెప్పు.";
+            else if(type==='devotional') prompt += "Task: ఈ రోజుకు సరిపడే ఆత్మీయ సందేశం మరియు ప్రార్థన రాయి.";
+            else {
+                if(!inputVal) return;
+                prompt += `User Question: ${inputVal}\nAnswer in Telugu based on the text.`;
+            }
+
+            contentDiv.classList.add('hidden');
+            loader.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const data = await res.json();
+                const txt = data.candidates[0].content.parts[0].text;
+                contentDiv.innerHTML = txt.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\* /g, '• ').replace(/\n/g, '<br>');
+                contentDiv.classList.remove('hidden');
+            } catch(e) {
+                contentDiv.innerHTML = '<span class="text-red-500">Error connecting to AI.</span>';
+                contentDiv.classList.remove('hidden');
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
