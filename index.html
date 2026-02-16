@@ -38,7 +38,7 @@
                 <select id="chapterSelect" class="bg-gray-100 border rounded p-2 w-24 text-gray-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
             </div>
             <div class="relative flex-1">
-                <input type="text" id="searchInput" placeholder="శోధించండి..." class="w-full border rounded p-2 pl-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="text" id="searchInput" placeholder="శోధించండి (ఉదా: దావీదు)..." class="w-full border rounded p-2 pl-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <button id="searchBtn" class="absolute right-1 top-1 bg-blue-100 text-blue-800 px-3 py-1 rounded hover:bg-blue-200">🔍</button>
             </div>
         </div>
@@ -64,9 +64,15 @@
             </div>
         </div>
 
+        <!-- Verse Container -->
         <div id="verses-container" class="hidden space-y-4"></div>
+
+        <!-- Search Results Display -->
         <div id="search-results" class="hidden space-y-4">
-            <h3 class="font-bold text-lg text-blue-900 border-b pb-2 mb-4">శోధన ఫలితాలు:</h3>
+            <div class="flex justify-between items-center border-b pb-2 mb-4">
+                <h3 class="font-bold text-lg text-blue-900">శోధన ఫలితాలు</h3>
+                <span id="search-stats" class="bg-yellow-100 text-yellow-800 text-sm font-bold px-2 py-1 rounded"></span>
+            </div>
             <div id="search-list" class="space-y-3"></div>
         </div>
     </main>
@@ -105,12 +111,12 @@
     </footer>
 
     <script>
-        const apiKey = ""; // API Key handled by environment or leave empty if using server
+        const apiKey = ""; 
         let bibleData = null;
         let currentBookIndex = 0;
         let currentChapterIndex = 0;
         
-        // HARDCODED TELUGU BOOK NAMES (Because your JSON lacks them)
+        // 66 BOOKS - TELUGU NAMES
         const teluguBookNames = [
             "ఆదికాండము", "నిర్గమకాండము", "లేవీయకాండము", "సంఖ్యాకాండము", "ద్వితీయోపదేశకాండము", "యెహోషువ", "న్యాయాధిపతులు", "రూతు", "1 సమూయేలు", "2 సమూయేలు", 
             "1 రాజులు", "2 రాజులు", "1 దినవృత్తాంతములు", "2 దినవృత్తాంతములు", "ఎజ్రా", "నెహెమ్యా", "ఎస్తేరు", "యోబు", "కీర్తనల గ్రంథము", "సామెతలు", 
@@ -124,26 +130,17 @@
         // --- 1. AUTO LOAD LOGIC ---
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                // Trying to fetch bible.json from the same repository
                 const response = await fetch('bible.json');
                 if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-                
                 const json = await response.json();
-                
-                // Validate Structure based on your screenshot
-                // Root -> Book (Array)
                 if (json.Book && Array.isArray(json.Book)) {
                     bibleData = json.Book;
                     initializeUI();
-                } else {
-                    throw new Error("Invalid JSON Structure: 'Book' array missing");
-                }
+                } else throw new Error("Invalid Format");
             } catch (error) {
                 console.error("Auto-load failed:", error);
                 document.getElementById('initial-loader').classList.add('hidden');
                 document.getElementById('welcome-msg').innerText = "లోడింగ్ విఫలమైంది";
-                document.getElementById('error-details').innerText = error.message;
-                document.getElementById('error-details').classList.remove('hidden');
                 document.getElementById('manual-upload-prompt').classList.remove('hidden');
             }
         });
@@ -180,7 +177,6 @@
             bibleData.forEach((_, index) => {
                 const option = document.createElement('option');
                 option.value = index;
-                // Use hardcoded name if available, otherwise Book 1
                 option.textContent = teluguBookNames[index] || `పుస్తకం ${index + 1}`;
                 select.appendChild(option);
             });
@@ -215,8 +211,6 @@
             document.getElementById('search-results').classList.add('hidden');
 
             const chapterData = bibleData[currentBookIndex].Chapter[currentChapterIndex];
-            
-            // Handle structure based on your JSON
             if(chapterData && chapterData.Verse) {
                 chapterData.Verse.forEach((v, idx) => {
                     const div = document.createElement('div');
@@ -226,23 +220,18 @@
                 });
             }
             window.scrollTo(0,0);
-            
-            // Nav buttons
+            updateNav();
+        }
+
+        function updateNav() {
             document.getElementById('prevChapter').disabled = (currentBookIndex === 0 && currentChapterIndex === 0);
             const lastBookIdx = bibleData.length - 1;
             const lastChapIdx = bibleData[lastBookIdx].Chapter.length - 1;
             document.getElementById('nextChapter').disabled = (currentBookIndex === lastBookIdx && currentChapterIndex === lastChapIdx);
         }
 
-        // --- 3. NAVIGATION & SEARCH ---
         document.getElementById('bookSelect').onchange = (e) => loadChapter(e.target.value, 0);
         document.getElementById('chapterSelect').onchange = (e) => loadChapter(currentBookIndex, e.target.value);
-        
-        document.getElementById('nextChapter').onclick = () => {
-            const chaps = bibleData[currentBookIndex].Chapter.length;
-            if(currentChapterIndex < chaps - 1) loadChapter(currentBookIndex, currentChapterIndex + 1);
-            else if(currentBookIndex < bibleData.length - 1) loadChapter(currentBookIndex + 1, 0);
-        };
         document.getElementById('prevChapter').onclick = () => {
             if(currentChapterIndex > 0) loadChapter(currentBookIndex, currentChapterIndex - 1);
             else if(currentBookIndex > 0) {
@@ -250,7 +239,13 @@
                 loadChapter(currentBookIndex - 1, prevChaps - 1);
             }
         };
+        document.getElementById('nextChapter').onclick = () => {
+            const chaps = bibleData[currentBookIndex].Chapter.length;
+            if(currentChapterIndex < chaps - 1) loadChapter(currentBookIndex, currentChapterIndex + 1);
+            else if(currentBookIndex < bibleData.length - 1) loadChapter(currentBookIndex + 1, 0);
+        };
 
+        // --- 3. IMPROVED SEARCH LOGIC ---
         document.getElementById('searchBtn').onclick = performSearch;
         document.getElementById('searchInput').onkeypress = (e) => { if(e.key==='Enter') performSearch(); };
 
@@ -262,32 +257,51 @@
             const resDiv = document.getElementById('search-results');
             resDiv.classList.remove('hidden');
             const list = document.getElementById('search-list');
-            list.innerHTML = '<div class="text-center">వెతుకుతున్నాను...</div>';
+            const stats = document.getElementById('search-stats');
+            
+            list.innerHTML = '<div class="text-center py-4"><div class="loader"></div><p>వెతుకుతున్నాను...</p></div>';
+            stats.innerText = '';
 
+            // Use setTimeout to allow UI to render the loader before heavy calculation
             setTimeout(() => {
                 list.innerHTML = '';
                 let count = 0;
+                let resultsHTML = '';
+
                 bibleData.forEach((book, bIdx) => {
+                    // FORCE TELUGU NAME HERE
                     const bName = teluguBookNames[bIdx] || `Book ${bIdx+1}`;
+                    
                     book.Chapter.forEach((ch, cIdx) => {
                         ch.Verse.forEach((v, vIdx) => {
                             if(v.Verse.includes(query)) {
                                 count++;
-                                if(count > 50) return;
-                                const d = document.createElement('div');
-                                d.className = "bg-white p-3 rounded border-l-4 border-blue-500 shadow-sm cursor-pointer hover:bg-blue-50";
-                                d.innerHTML = `<div class="text-xs text-blue-600 font-bold">${bName} ${cIdx+1}:${vIdx+1}</div><div class="text-sm">${v.Verse.replace(query, `<span class="bg-yellow-200 font-bold">${query}</span>`)}</div>`;
-                                d.onclick = () => loadChapter(bIdx, cIdx);
-                                list.appendChild(d);
+                                // Highlight the word
+                                const highlightedText = v.Verse.replace(new RegExp(query, 'gi'), match => `<span class="bg-yellow-200 font-bold">${match}</span>`);
+                                
+                                // Create HTML String (Better performance than createElem in loop)
+                                resultsHTML += `
+                                    <div onclick="loadChapter(${bIdx}, ${cIdx})" class="bg-white p-3 rounded border-l-4 border-blue-500 shadow-sm cursor-pointer hover:bg-blue-50 transition">
+                                        <div class="text-xs text-blue-600 font-bold mb-1">${bName} ${cIdx+1}:${vIdx+1}</div>
+                                        <div class="text-gray-700 text-sm leading-relaxed">${highlightedText}</div>
+                                    </div>
+                                `;
                             }
                         });
                     });
                 });
-                if(count === 0) list.innerHTML = '<div class="text-red-500 text-center">ఫలితాలు లేవు</div>';
+
+                if(count === 0) {
+                    list.innerHTML = '<div class="text-red-500 text-center p-4">ఫలితాలు ఏమీ దొరకలేదు.</div>';
+                    stats.innerText = '0 ఫలితాలు';
+                } else {
+                    list.innerHTML = resultsHTML;
+                    stats.innerText = `${count} ఫలితాలు దొరికాయి`;
+                }
             }, 50);
         }
 
-        // --- 4. AI ---
+        // --- 4. AI LOGIC ---
         function toggleAIPanel() { document.getElementById('ai-panel').classList.toggle('translate-x-full'); }
         async function askGemini(type) {
             const contentDiv = document.getElementById('ai-content');
@@ -296,12 +310,12 @@
             
             if(!bibleData) return;
             const bName = teluguBookNames[currentBookIndex];
-            const verses = bibleData[currentBookIndex].Chapter[currentChapterIndex].Verse.map(v => v.Verse).join('\n').substring(0, 10000);
+            const verses = bibleData[currentBookIndex].Chapter[currentChapterIndex].Verse.map(v => v.Verse).join('\n').substring(0, 12000);
             
-            let prompt = `Bible Context: ${bName} Chapter ${currentChapterIndex+1}\nText:\n${verses}\n\nTask:\n`;
-            if(type==='summary') prompt += "Explain the summary of this chapter in Telugu.";
-            else if(type==='story') prompt += "Narrate this chapter as a moral story for kids in Telugu.";
-            else if(type==='devotional') prompt += "Write a devotional message and prayer for today based on this chapter in Telugu.";
+            let prompt = `Role: Telugu Christian Assistant. Context: Bible ${bName} Chapter ${currentChapterIndex+1}.\nText:\n${verses}\n\nTask:\n`;
+            if(type==='summary') prompt += "Give a summary of this chapter in Telugu.";
+            else if(type==='story') prompt += "Tell this chapter as a moral story for children in Telugu.";
+            else if(type==='devotional') prompt += "Write a devotional message and a short prayer based on this chapter in Telugu.";
             else prompt += `Answer this question in Telugu: ${inputVal}`;
 
             contentDiv.classList.add('hidden');
@@ -318,7 +332,7 @@
                 contentDiv.innerHTML = txt.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\* /g, '• ').replace(/\n/g, '<br>');
                 contentDiv.classList.remove('hidden');
             } catch(e) {
-                contentDiv.innerHTML = '<span class="text-red-500">AI Error. Check Key.</span>';
+                contentDiv.innerHTML = '<span class="text-red-500">AI Error. Check Connection/Key.</span>';
                 contentDiv.classList.remove('hidden');
             } finally {
                 loader.classList.add('hidden');
